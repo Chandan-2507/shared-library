@@ -1,76 +1,15 @@
-@Library('Jenkins_Shared_Library@main') _
+// vars/constants.groovy
+import groovy.transform.Field
 
-pipeline {
-    agent any
+@Field String AWS_ACCOUNT_ID = '920373030315'
+@Field String AWS_DEFAULT_REGION = 'us-east-1'
+@Field String IMAGE_REPO_NAME = 'sample-webapp'
+@Field String GIT_REPO_URL = 'https://github.com/girishballur123/Maven-project.git'
 
-    environment {
-        // Fetch constants from the shared library
-        constants = constants()
+// Jenkins Credential IDs
+@Field String GIT_CREDENTIALS_ID = 'Jenkinslatest'
+@Field String ECR_CREDENTIALS_ID = 'AWS_Credentials'
 
-        AWS_ACCOUNT_ID = "${constants.AWS_ACCOUNT_ID}"
-        AWS_DEFAULT_REGION = "${constants.AWS_DEFAULT_REGION}"
-        IMAGE_REPO_NAME = "${constants.IMAGE_REPO_NAME}"
-        IMAGE_TAG = "latest"
-        REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
-        GIT_REPO_URL = "${constants.GIT_REPO_URL}"
-        GIT_CREDENTIALS_ID = "${constants.GIT_CREDENTIALS_ID}"
-        ECR_CREDENTIALS_ID = "${constants.ECR_CREDENTIALS_ID}"
-    }
-
-    stages {
-        stage('Cleanup Docker Environment') {
-            steps {
-                script {
-                    sh 'docker system prune -af || true'
-                }
-            }
-        }
-
-        stage('Login into AWS ECR') {
-            steps {
-                withAWS(credentials: ECR_CREDENTIALS_ID, region: AWS_DEFAULT_REGION) {
-                    sh '''
-                        aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | \
-                        docker login --username AWS --password-stdin ${REPOSITORY_URI}
-                    '''
-                }
-            }
-        }
-
-        stage('Cloning Git Repository') {
-            steps {
-                git branch: 'master', url: GIT_REPO_URL, credentialsId: GIT_CREDENTIALS_ID
-            }
-        }
-
-        stage('Build') {
-            steps {
-                sh 'mvn clean package'  // Ensure the WAR file is built and available in the /target folder
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                sh "docker build -t ${IMAGE_REPO_NAME}:${IMAGE_TAG} ."
-            }
-        }
-
-        stage('Tag Docker Image') {
-            steps {
-                sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${REPOSITORY_URI}:${IMAGE_TAG}"
-            }
-        }
-
-        stage('Run Docker Container') {
-            steps {
-                sh "docker run -d -p 8080:8080 --name ${IMAGE_REPO_NAME}-container ${IMAGE_REPO_NAME}:latest"
-            }
-        }
-
-        stage('Push Image to ECR') {
-            steps {
-                sh "docker push ${REPOSITORY_URI}:${IMAGE_TAG}"
-            }
-        }
-    }
+def call() {
+    return this
 }
